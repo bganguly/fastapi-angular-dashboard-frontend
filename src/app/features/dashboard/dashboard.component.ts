@@ -10,6 +10,7 @@ import {
   AggregatesService, OrdersService, RegionsService,
   DailyAggregate, OrderDTO, RegionSummary, OrderStatus,
 } from '@angular-dashboard/data-access';
+import { DatasetBoundsService, DatasetBounds } from '../../core/services/dataset-bounds.service';
 import {
   PaginationComponent,
 } from '@angular-dashboard/ui';
@@ -172,9 +173,9 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
               </span>
               <span *ngIf="allDates()"
                     class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                All dates
+                All time
                 <button type="button" (click)="toggleAllDates()"
-                        aria-label="Remove all dates filter"
+                        aria-label="Remove all time filter"
                         class="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-200">×</button>
               </span>
               <span *ngIf="!allDates() && (filters().from || filters().to)"
@@ -256,8 +257,9 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
             <legend class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Placed date</legend>
             <label class="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800">
               <input type="checkbox" [checked]="allDates()" (change)="toggleAllDates()"
-                     class="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-              All dates
+                     [disabled]="!datasetBounds()"
+                     class="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-500" />
+              All time
             </label>
             <ng-container *ngIf="!allDates()">
               <label class="block text-xs text-gray-500 dark:text-gray-400">
@@ -502,6 +504,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly aggSvc = inject(AggregatesService);
   private readonly ordersSvc = inject(OrdersService);
   private readonly regionsSvc = inject(RegionsService);
+  private readonly boundsSvc = inject(DatasetBoundsService);
 
   readonly fieldCls = FIELD_CLS;
   readonly statuses = ORDER_STATUSES;
@@ -512,13 +515,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly sidebarCollapsed = signal(false);
   readonly regionSearch = signal('');
   readonly allDates = signal(false);
+  readonly datasetBounds = signal<DatasetBounds | null>(null);
 
   // Filters
   readonly filters = signal<DashFilters>({
     status: [],
     regionCodes: [],
-    from: '2020-01-01',
-    to: new Date().toISOString().slice(0, 10),
+    from: '',
+    to: '',
     totalMin: '',
     totalMax: '',
   });
@@ -650,6 +654,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.regionsSvc.list().subscribe(r => this.regions.set(r));
+    this.boundsSvc.get().subscribe({
+      next: (b) => {
+        if (!b.from || !b.to) return;
+        this.datasetBounds.set(b);
+        const end = new Date(`${b.to}T00:00:00Z`);
+        end.setUTCDate(end.getUTCDate() - 90);
+        const f = this.filters();
+        if (!f.from && !f.to) {
+          this.filters.update(v => ({ ...v, from: end.toISOString().slice(0, 10), to: b.to }));
+        }
+      },
+      error: () => {},
+    });
     this.loadChart();
     this.loadOrders();
   }
@@ -706,10 +723,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   toggleAllDates(): void {
     const next = !this.allDates();
     this.allDates.set(next);
+    const bounds = this.datasetBounds();
     if (next) {
-      this.filters.update(f => ({ ...f, from: '', to: '' }));
+      const from = bounds?.from ?? this.defaultFrom();
+      const to = bounds?.to ?? this.defaultTo();
+      this.filters.update(f => ({ ...f, from, to }));
     } else {
-      this.filters.update(f => ({ ...f, from: this.defaultFrom(), to: this.defaultTo() }));
+      const to = bounds?.to ?? this.defaultTo();
+      const end = new Date(`${to}T00:00:00Z`);
+      end.setUTCDate(end.getUTCDate() - 90);
+      this.filters.update(f => ({ ...f, from: end.toISOString().slice(0, 10), to }));
     }
     this.page.set(1);
     this.loadChart();
@@ -748,8 +771,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadChart(): void {
     const f = this.filters();
-    const from = this.allDates() ? ALL_DATES_FROM : (f.from || this.defaultFrom());
-    const to = this.allDates() ? this.defaultTo() : (f.to || this.defaultTo());
+    const bounds = this.datasetBounds();
+    const from = this.allDates() ? (bounds?.from ?? this.defaultFrom()) : (f.from || this.defaultFrom());
+    const to = this.allDates() ? (bounds?.to ?? this.defaultTo()) : (f.to || this.defaultTo());
 
     const timeSinceLast = this.lastActivityAt > 0 ? Date.now() - this.lastActivityAt : Infinity;
     if (this.dbWarm && timeSinceLast > IDLE_RESET_MS) this.dbWarm = false;
