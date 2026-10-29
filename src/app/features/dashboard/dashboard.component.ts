@@ -656,7 +656,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.regionsSvc.list().subscribe(r => this.regions.set(r));
     this.boundsSvc.get().subscribe({
       next: (b) => {
-        if (!b.from || !b.to) return;
+        if (!b.from || !b.to) {
+          this.loadChart();
+          this.loadOrders();
+          return;
+        }
         this.datasetBounds.set(b);
         const end = new Date(`${b.to}T00:00:00Z`);
         end.setUTCDate(end.getUTCDate() - 90);
@@ -664,11 +668,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (!f.from && !f.to) {
           this.filters.update(v => ({ ...v, from: end.toISOString().slice(0, 10), to: b.to }));
         }
+        this.loadChart();
+        this.loadOrders();
       },
-      error: () => {},
+      error: () => {
+        this.loadChart();
+        this.loadOrders();
+      },
     });
-    this.loadChart();
-    this.loadOrders();
   }
 
   ngOnDestroy(): void {
