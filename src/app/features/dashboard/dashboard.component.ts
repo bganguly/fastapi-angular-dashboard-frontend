@@ -837,10 +837,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const matchedOrders = apiTotal ?? allCatsSum;
     this.chartTotal.set(matchedOrders);
 
-    const cats = this.topCats.map(cat => ({ cat, total: totals.get(cat) ?? 0 }));
+    const rawEntries = this.topCats.map(cat => ({ cat, raw: totals.get(cat) ?? 0 }));
+    const othersRaw = [...totals.entries()]
+      .filter(([cat]) => !topSet.has(cat))
+      .reduce((s, [, v]) => s + v, 0);
+    const rawTotal = rawEntries.reduce((s, e) => s + e.raw, 0) + othersRaw;
+    const cats = rawEntries.map(e => ({
+      cat: e.cat,
+      total: rawTotal > 0 ? Math.round(matchedOrders * e.raw / rawTotal) : 0,
+    }));
     if (has) {
-      const topOrdersSum = cats.reduce((s, c) => s + c.total, 0);
-      cats.push({ cat: OTHER_KEY, total: Math.max(0, matchedOrders - topOrdersSum) });
+      const topSum = cats.reduce((s, c) => s + c.total, 0);
+      cats.push({ cat: OTHER_KEY, total: Math.max(0, matchedOrders - topSum) });
     }
     this.categoryTotals.set(cats);
 
