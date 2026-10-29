@@ -261,16 +261,14 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
                      class="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-500" />
               All time
             </label>
-            <ng-container *ngIf="!allDates()">
-              <label class="block text-xs text-gray-500 dark:text-gray-400">
-                From
-                <input type="date" [value]="filters().from" (change)="onDateFrom($event)" [class]="fieldCls" />
-              </label>
-              <label class="block text-xs text-gray-500 dark:text-gray-400">
-                To
-                <input type="date" [value]="filters().to" (change)="onDateTo($event)" [class]="fieldCls" />
-              </label>
-            </ng-container>
+            <label class="block text-xs text-gray-500 dark:text-gray-400">
+              From
+              <input type="date" [value]="filters().from" (change)="onDateFrom($event)" [class]="fieldCls" [disabled]="allDates()" />
+            </label>
+            <label class="block text-xs text-gray-500 dark:text-gray-400">
+              To
+              <input type="date" [value]="filters().to" (change)="onDateTo($event)" [class]="fieldCls" [disabled]="allDates()" />
+            </label>
           </fieldset>
 
           <!-- Order total range -->
@@ -302,7 +300,8 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
           <div>
             <h2 class="text-base font-semibold text-gray-900 dark:text-gray-50">Aggregates</h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ brushStartDate() }} → {{ brushEndDate() }}<span class="ml-2 text-gray-400">drag slider to narrow</span>
+              <ng-container *ngIf="!chartLoading()">{{ brushStartDate() }} → {{ brushEndDate() }}<span class="ml-2 text-gray-400">drag slider to narrow</span></ng-container>
+              <span *ngIf="chartLoading()" class="inline-block h-3 w-40 animate-pulse rounded bg-gray-200 align-middle dark:bg-gray-700"></span>
             </p>
           </div>
         </header>
@@ -327,7 +326,14 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
             <span class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500 dark:border-gray-700 dark:border-t-indigo-400"
                   role="status" aria-label="Updating chart"></span>
           </div>
-          <canvas baseChart
+          <canvas *ngIf="chartRebuildKey() === 'a'" baseChart
+                  [data]="chartData()"
+                  [options]="chartOptions"
+                  type="bar"
+                  role="img"
+                  aria-label="Stacked bar chart of daily orders by category">
+          </canvas>
+          <canvas *ngIf="chartRebuildKey() === 'b'" baseChart
                   [data]="chartData()"
                   [options]="chartOptions"
                   type="bar"
@@ -557,6 +563,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly chartTotal = signal<number | null>(null);
 
   readonly chartData = signal<ChartConfiguration<'bar'>['data']>({ labels: [], datasets: [] });
+  readonly chartRebuildKey = signal<'a' | 'b'>('a');
   readonly chartOptions: ChartConfiguration<'bar'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
@@ -875,6 +882,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.brushStart.set(0);
     this.brushEnd.set(Math.max(0, buckets.length - 1));
     this.rebuildChart();
+    this.chartRebuildKey.update(k => k === 'a' ? 'b' : 'a');
   }
 
   private rebuildChart(): void {
