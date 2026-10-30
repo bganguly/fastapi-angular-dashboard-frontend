@@ -882,7 +882,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.brushStart.set(0);
     this.brushEnd.set(Math.max(0, buckets.length - 1));
     this.rebuildChart();
-    this.chartRebuildKey.update(k => k === 'a' ? 'b' : 'a');
   }
 
   private rebuildChart(): void {
@@ -918,6 +917,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
       labels: display.map(b => String(b.date)),
       datasets,
     });
+
+    // For brush subsets recompute visible-range totals from the slice data.
+    // Skip for full range so buildChart()'s apiTotal-based values are preserved.
+    if (!(this.brushStart() === 0 && this.brushEnd() === all.length - 1)) {
+      const sliceMap = new Map<string, number>();
+      for (const b of display) {
+        for (const [k, v] of Object.entries(b)) {
+          if (k === 'date') continue;
+          sliceMap.set(k, (sliceMap.get(k) ?? 0) + (v as number));
+        }
+      }
+      const sliceTotal = [...sliceMap.values()].reduce((s, v) => s + v, 0);
+      this.chartTotal.set(sliceTotal);
+      const cats = this.topCats.map(cat => ({ cat, total: sliceMap.get(cat) ?? 0 }));
+      if (this.hasOthers()) cats.push({ cat: OTHER_KEY, total: sliceMap.get(OTHER_KEY) ?? 0 });
+      this.categoryTotals.set(cats);
+    }
+
+    // Toggling the key destroys/recreates the canvas so ng2-charts always picks
+    // up the new data — in-place [data] binding updates are unreliable in OnPush.
+    this.chartRebuildKey.update(k => k === 'a' ? 'b' : 'a');
   }
 
   toggleOthers(): void {
