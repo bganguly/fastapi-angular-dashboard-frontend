@@ -660,6 +660,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    const timeSinceLast = this.lastActivityAt > 0 ? Date.now() - this.lastActivityAt : Infinity;
+    if (this.dbWarm && timeSinceLast > IDLE_RESET_MS) this.dbWarm = false;
+    if (!this.dbWarm && this.dbStatus() === null) {
+      this.wakeTimer = setTimeout(() => this.dbStatus.set('waking'), SLOW_WAKING_MS);
+    }
     this.regionsSvc.list().subscribe(r => this.regions.set(r));
     this.boundsSvc.get().subscribe({
       next: (b) => {
@@ -791,7 +796,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const timeSinceLast = this.lastActivityAt > 0 ? Date.now() - this.lastActivityAt : Infinity;
     if (this.dbWarm && timeSinceLast > IDLE_RESET_MS) this.dbWarm = false;
-    if (!this.dbWarm && this.dbStatus() === null) {
+    if (!this.dbWarm && this.dbStatus() === null && !this.wakeTimer) {
       this.wakeTimer = setTimeout(() => this.dbStatus.set('waking'), SLOW_WAKING_MS);
     }
 
