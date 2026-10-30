@@ -19,7 +19,7 @@ Chart.register(...registerables);
 
 const TOP_N = 4;
 const OTHER_KEY = 'Others';
-const SLOW_WAKING_MS = 800;
+const SLOW_WAKING_MS = 0;
 const IDLE_RESET_MS = 15 * 60 * 1000;
 const PALETTE = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7', '#ec4899'];
 const OTHER_COLOR = '#94a3b8';
@@ -95,7 +95,7 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
 <main id="main-content" class="w-full px-5 py-8" aria-label="Dashboard">
 
   <div *ngIf="dbStatus()"
-       class="mb-4 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm w-fit"
+       class="mx-auto mb-4 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm w-fit"
        [style.background]="dbStatus() === 'waking' ? 'rgba(251,191,36,0.12)' : 'rgba(34,197,94,0.12)'"
        [style.border]="dbStatus() === 'waking' ? '1px solid rgba(251,191,36,0.30)' : '1px solid rgba(34,197,94,0.30)'"
        [style.color]="dbStatus() === 'waking' ? '#fbbf24' : '#4ade80'">
@@ -308,10 +308,7 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
 
         <!-- Loading / empty state (initial — no data yet) -->
         <div *ngIf="chartLoading() && !chartData().labels?.length"
-             class="flex h-72 flex-col items-center justify-center gap-2 text-sm text-gray-400" aria-live="polite">
-          <span class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500 dark:border-gray-700 dark:border-t-indigo-400"
-                role="status" aria-label="Loading chart"></span>
-        </div>
+             class="h-72 rounded-lg animate-pulse bg-gray-100 dark:bg-gray-800" aria-live="polite" role="status" aria-label="Loading chart"></div>
         <div *ngIf="!chartLoading() && !chartData().datasets.length"
              class="flex h-72 items-center justify-center text-sm text-gray-400 dark:text-gray-500">
           No data for selected range.
@@ -454,9 +451,12 @@ const FIELD_CLS = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1.5
             </thead>
             <tbody>
               <tr *ngIf="ordersLoading()">
-                <td colspan="5" class="py-10 text-center">
-                  <span class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500 dark:border-gray-700 dark:border-t-indigo-400"
-                        role="status" aria-label="Loading"></span>
+                <td colspan="6" class="px-4 py-6">
+                  <div class="space-y-3">
+                    <div class="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-800"></div>
+                    <div class="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-800" style="width:80%"></div>
+                    <div class="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-800" style="width:60%"></div>
+                  </div>
                 </td>
               </tr>
               <tr *ngIf="!ordersLoading() && orders().length === 0">
