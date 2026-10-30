@@ -670,7 +670,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.datasetBounds.set(b);
         const end = new Date(`${b.to}T00:00:00Z`);
-        end.setUTCDate(end.getUTCDate() - 90);
+        end.setUTCDate(end.getUTCDate() - 89);
         const f = this.filters();
         if (!f.from && !f.to) {
           this.filters.update(v => ({ ...v, from: end.toISOString().slice(0, 10), to: b.to }));
@@ -745,7 +745,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       const to = bounds?.to ?? this.defaultTo();
       const end = new Date(`${to}T00:00:00Z`);
-      end.setUTCDate(end.getUTCDate() - 90);
+      end.setUTCDate(end.getUTCDate() - 89);
       this.filters.update(f => ({ ...f, from: end.toISOString().slice(0, 10), to }));
     }
     this.page.set(1);
