@@ -450,7 +450,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
 
   dsFrom    = '';
   dsEnd     = '';
-  brushFrom = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
+  brushFrom = new Date(Date.now() - 89 * 864e5).toISOString().slice(0, 10);
   brushTo   = new Date().toISOString().slice(0, 10);
 
   expanded: Record<string, boolean> = {};
@@ -545,7 +545,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
           const end = new Date(this.dsEnd);
           this.aggFrom   = new Date(end.getTime() - 89 * 864e5).toISOString().slice(0, 10);
           this.aggTo     = this.dsEnd;
-          this.brushFrom = new Date(end.getTime() - 29 * 864e5).toISOString().slice(0, 10);
+          this.brushFrom = new Date(end.getTime() - 89 * 864e5).toISOString().slice(0, 10);
           this.brushTo   = this.dsEnd;
           this.cdr.markForCheck();
         }
