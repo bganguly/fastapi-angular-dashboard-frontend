@@ -90,7 +90,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
             @if (wakeStatus === 'waking') {
               <div style="display:flex;align-items:center;gap:0.5rem;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.30);color:#fbbf24;border-radius:0.5rem;padding:0.375rem 0.75rem;font-size:0.75rem">
                 <span class="ae-spinner"></span>
-                Probing GET /api/orders —
+                Probing backend · fetching bounds —
                 <span style="font-family:monospace;margin-left:4px">{{ (wakeMs / 1000).toFixed(1) }}s</span>
               </div>
             }
@@ -135,6 +135,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
             <div class="ae-body">
               <div class="ae-ctrl">
                 <div class="ae-params">
+                  <span class="ae-param">page=1</span>
                   <span class="ae-param">pageSize=20</span>
                   <span class="ae-param">sort=placedAt</span>
                   <span class="ae-param">dir=desc</span>
@@ -185,6 +186,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
                 <div class="ae-params">
                   <input class="ae-input" [(ngModel)]="searchQ" placeholder="e.g. kihn, saturday, perishable"
                          (keydown.enter)="runSearch()" style="width:220px" />
+                  <span class="ae-param">page=1</span>
                   <span class="ae-param">pageSize=20</span>
                   <span class="ae-param">sort=placedAt</span>
                   <span class="ae-param">dir=desc</span>
@@ -272,6 +274,64 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
                 </table>
                 <button class="ae-raw-tog" (click)="toggleRaw('agg')">{{ showRaw['agg'] ? '▲ Hide raw JSON' : '▼ View raw JSON' }}</button>
                 @if (showRaw['agg']) { <pre class="ae-raw">{{ agg.result.json | json }}</pre> }
+              }
+            </div>
+          }
+        </div>
+
+        <!-- GET /api/aggregates (brush window) -->
+        <div class="ae-section">
+          <div class="ae-hd" (click)="toggle('brush')">
+            <span class="ae-get">GET</span>
+            <span class="ae-path">/api/aggregates</span>
+            <span class="ae-sub">Brush / time-window view — same endpoint, narrower date range</span>
+            <svg class="ae-chev" [style.transform]="expanded['brush'] ? 'rotate(180deg)' : 'rotate(0)'"
+                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          @if (expanded['brush']) {
+            <div class="ae-body">
+              <div class="ae-ctrl">
+                <div class="ae-params">
+                  <span style="font-size:0.6875rem;font-family:monospace;color:#52525b">from</span>
+                  <input type="date" class="ae-date" [(ngModel)]="brushFrom" placeholder="from" style="width:150px" />
+                  <span style="font-size:0.6875rem;font-family:monospace;color:#52525b">to</span>
+                  <input type="date" class="ae-date" [(ngModel)]="brushTo" placeholder="to" style="width:150px" />
+                  <span class="ae-param">topCategories=5</span>
+                </div>
+                <button class="ae-run" [disabled]="brush.loading || !brushFrom || !brushTo" (click)="runBrush()">
+                  @if (brush.loading) { <span class="ae-spinner"></span> Running… } @else { ▶ Run }
+                </button>
+              </div>
+              @if (brush.loading && brush.slow) { <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.6875rem;color:#71717a"><span class="ae-spinner"></span> Service may be waking up…</div> }
+              @if (brush.err) { <div class="ae-err">{{ brush.err }}</div> }
+              @if (brush.result && !brush.loading) {
+                <span [class]="msClass(brushMs)">{{ brushMs }}ms</span>
+                <div class="ae-meta">{{ brushRows.length }} day{{ brushRows.length !== 1 ? 's' : '' }} · {{ brushFrom }} → {{ brushTo }}</div>
+                <div style="display:flex;gap:1rem;margin-bottom:0.75rem">
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:0.5rem;padding:0.5rem 1rem;text-align:center">
+                    <div style="font-size:1.125rem;font-weight:700;color:#f4f4f5">{{ brushOrders | number }}</div>
+                    <div style="font-size:0.625rem;color:#52525b;text-transform:uppercase;letter-spacing:.06em">Total Orders</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:0.5rem;padding:0.5rem 1rem;text-align:center">
+                    <div style="font-size:1.125rem;font-weight:700;color:#34d399">\${{ brushRevenue | number:'1.0-0' }}</div>
+                    <div style="font-size:0.625rem;color:#52525b;text-transform:uppercase;letter-spacing:.06em">Est. Revenue</div>
+                  </div>
+                </div>
+                <table class="ae-tbl">
+                  <tr><th>Date</th><th>Orders</th><th>Revenue</th><th>Categories</th></tr>
+                  @for (row of brushTableRows; track $index) {
+                    <tr>
+                      <td>{{ row.date }}</td>
+                      <td>{{ row.orders | number }}</td>
+                      <td style="color:#34d399">\${{ row.revenue | number:'1.0-0' }}</td>
+                      <td style="color:#71717a">{{ row.cats }}</td>
+                    </tr>
+                  }
+                </table>
+                <button class="ae-raw-tog" (click)="toggleRaw('brush')">{{ showRaw['brush'] ? '▲ Hide raw JSON' : '▼ View raw JSON' }}</button>
+                @if (showRaw['brush']) { <pre class="ae-raw">{{ brush.result.json | json }}</pre> }
               }
             </div>
           }
@@ -384,8 +444,14 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   orders  = emptyCard();
   search  = emptyCard();
   agg     = emptyCard();
+  brush   = emptyCard();
   cust    = emptyCard();
   regions = emptyCard();
+
+  dsFrom    = '';
+  dsEnd     = '';
+  brushFrom = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
+  brushTo   = new Date().toISOString().slice(0, 10);
 
   expanded: Record<string, boolean> = {};
   toggle(key: string) { this.expanded[key] = !this.expanded[key]; }
@@ -433,6 +499,20 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   get aggRevenue()  { let s = 0; this.aggRows.forEach(d => Object.values((d['categories'] as Record<string, { totalRevenue?: number }>) || {}).forEach(c => s += c.totalRevenue || 0)); return s; }
   get aggMs()       { return this.agg.result?.ms ?? 0; }
 
+  get brushRows()      { const j = this.brush.result?.json; return (Array.isArray(j) ? j : (j as { data?: unknown[] })?.data ?? []) as Record<string, unknown>[]; }
+  get brushOrders()    { let s = 0; this.brushRows.forEach(d => Object.values((d['categories'] as Record<string, { totalOrders?: number }>) || {}).forEach(c => s += c.totalOrders || 0)); return s; }
+  get brushRevenue()   { let s = 0; this.brushRows.forEach(d => Object.values((d['categories'] as Record<string, { totalRevenue?: number }>) || {}).forEach(c => s += c.totalRevenue || 0)); return s; }
+  get brushMs()        { return this.brush.result?.ms ?? 0; }
+  get brushTableRows() {
+    return this.brushRows.map(d => {
+      const cats = (d['categories'] as Record<string,{totalOrders?:number;totalRevenue?:number}>) ?? {};
+      let orders = 0, revenue = 0;
+      Object.values(cats).forEach(c => { orders += c.totalOrders ?? 0; revenue += c.totalRevenue ?? 0; });
+      const top = Object.entries(cats).sort((a,b)=>(b[1].totalOrders??0)-(a[1].totalOrders??0)).slice(0,3).map(([k])=>k).join(', ');
+      return { date: String(d['date']??''), orders, revenue, cats: top };
+    });
+  }
+
   get custRows()    { return this.rows(this.cust.result?.json); }
   get custMs()      { return this.cust.result?.ms ?? 0; }
 
@@ -456,10 +536,22 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
       }, 100);
     }, SLOW_WAKING_MS);
 
-    this.http.get(`${environment.apiBase}/api/orders?pageSize=20&sort=placedAt&dir=desc`).subscribe({
-      next: () => this.markReady(),
-      error: () => this.markReady(),
-    });
+    fetch(`${environment.apiBase}/api/dataset-bounds`)
+      .then(r => r.ok ? r.json() : null)
+      .then((b: { from?: string; to?: string } | null) => {
+        if (b?.to) {
+          this.dsEnd  = String(b.to).slice(0, 10);
+          this.dsFrom = String(b.from ?? '').slice(0, 10);
+          const end = new Date(this.dsEnd);
+          this.aggFrom   = new Date(end.getTime() - 89 * 864e5).toISOString().slice(0, 10);
+          this.aggTo     = this.dsEnd;
+          this.brushFrom = new Date(end.getTime() - 29 * 864e5).toISOString().slice(0, 10);
+          this.brushTo   = this.dsEnd;
+          this.cdr.markForCheck();
+        }
+        this.markReady();
+      })
+      .catch(() => this.markReady());
   }
 
   ngOnDestroy() {
@@ -484,7 +576,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   async runOrders() {
     this.orders = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const r = await fetchTimed(`${environment.apiBase}/api/orders?pageSize=20&sort=placedAt&dir=desc`);
+      const r = await fetchTimed(`${environment.apiBase}/api/orders?page=1&pageSize=20&sort=placedAt&dir=desc`);
       this.orders = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.orders = { loading: false, slow: false, result: null, err: String(e) };
@@ -495,7 +587,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
     if (!this.searchQ.trim()) return;
     this.search = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const r = await fetchTimed(`${environment.apiBase}/api/orders?q=` + encodeURIComponent(this.searchQ.trim()) + '&pageSize=20&sort=placedAt&dir=desc');
+      const r = await fetchTimed(`${environment.apiBase}/api/orders?page=1&q=` + encodeURIComponent(this.searchQ.trim()) + '&pageSize=20&sort=placedAt&dir=desc');
       this.search = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.search = { loading: false, slow: false, result: null, err: String(e) };
@@ -510,6 +602,17 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
       this.agg = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.agg = { loading: false, slow: false, result: null, err: String(e) };
+    }
+  }
+
+  async runBrush() {
+    if (!this.brushFrom || !this.brushTo) return;
+    this.brush = { loading: true, slow: maybeAsleep(), result: null, err: null };
+    try {
+      const r = await fetchTimed(`${environment.apiBase}/api/aggregates?from=${this.brushFrom}&to=${this.brushTo}&topCategories=5`);
+      this.brush = { loading: false, slow: false, result: r, err: null };
+    } catch (e) {
+      this.brush = { loading: false, slow: false, result: null, err: String(e) };
     }
   }
 
