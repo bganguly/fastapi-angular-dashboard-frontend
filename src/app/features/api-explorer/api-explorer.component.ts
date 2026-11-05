@@ -183,7 +183,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
             <div class="ae-body">
               <div class="ae-ctrl">
                 <div class="ae-params">
-                  <input class="ae-input" [(ngModel)]="searchQ" placeholder="e.g. gupta, sara, east…"
+                  <input class="ae-input" [(ngModel)]="searchQ" placeholder="e.g. kihn, saturday, perishable"
                          (keydown.enter)="runSearch()" style="width:220px" />
                   <span class="ae-param">pageSize=10</span>
                 </div>
@@ -290,7 +290,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
             <div class="ae-body">
               <div class="ae-ctrl">
                 <div class="ae-params">
-                  <input class="ae-input" [(ngModel)]="custQ" placeholder="e.g. gupta, sara…"
+                  <input class="ae-input" [(ngModel)]="custQ" placeholder="e.g. kihn, flo"
                          (keydown.enter)="runCustomers()" style="width:200px" />
                   <span class="ae-param">limit=10</span>
                 </div>
