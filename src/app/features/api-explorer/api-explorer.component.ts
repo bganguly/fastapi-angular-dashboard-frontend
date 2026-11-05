@@ -135,7 +135,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
             <div class="ae-body">
               <div class="ae-ctrl">
                 <div class="ae-params">
-                  <span class="ae-param">pageSize=10</span>
+                  <span class="ae-param">pageSize=20</span>
                   <span class="ae-param">sort=placedAt</span>
                   <span class="ae-param">dir=desc</span>
                 </div>
@@ -185,7 +185,9 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
                 <div class="ae-params">
                   <input class="ae-input" [(ngModel)]="searchQ" placeholder="e.g. kihn, saturday, perishable"
                          (keydown.enter)="runSearch()" style="width:220px" />
-                  <span class="ae-param">pageSize=10</span>
+                  <span class="ae-param">pageSize=20</span>
+                  <span class="ae-param">sort=placedAt</span>
+                  <span class="ae-param">dir=desc</span>
                 </div>
                 <button class="ae-run" [disabled]="search.loading" (click)="runSearch()">
                   @if (search.loading) { <span class="ae-spinner"></span> Running… } @else { ▶ Run }
@@ -236,7 +238,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
                   <input type="date" class="ae-date" [(ngModel)]="aggFrom" placeholder="from" style="width:150px" />
                   <span style="font-size:0.6875rem;font-family:monospace;color:#52525b">to</span>
                   <input type="date" class="ae-date" [(ngModel)]="aggTo" placeholder="to" style="width:150px" />
-                  <span class="ae-param">topCategories=3</span>
+                  <span class="ae-param">topCategories=5</span>
                 </div>
                 <button class="ae-run" [disabled]="agg.loading || !aggFrom || !aggTo" (click)="runAgg()">
                   @if (agg.loading) { <span class="ae-spinner"></span> Running… } @else { ▶ Run }
@@ -292,7 +294,7 @@ async function fetchTimed(url: string): Promise<{ json: unknown; ms: number }> {
                 <div class="ae-params">
                   <input class="ae-input" [(ngModel)]="custQ" placeholder="e.g. kihn, flo"
                          (keydown.enter)="runCustomers()" style="width:200px" />
-                  <span class="ae-param">limit=10</span>
+                  <span class="ae-param">limit=20</span>
                 </div>
                 <button class="ae-run" [disabled]="cust.loading" (click)="runCustomers()">
                   @if (cust.loading) { <span class="ae-spinner"></span> Running… } @else { ▶ Run }
@@ -406,7 +408,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   // Inputs
   searchQ = '';
   custQ   = '';
-  aggFrom = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+  aggFrom = new Date(Date.now() - 89 * 864e5).toISOString().slice(0, 10);
   aggTo   = new Date().toISOString().slice(0, 10);
 
   // Derived
@@ -414,7 +416,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   get ordersLabel() {
     const j = this.orders.result?.json as { total?: number } | null;
     const t = j?.total ?? this.ordersRows.length;
-    return `${Number(t).toLocaleString()} total orders · showing first 10`;
+    return `${Number(t).toLocaleString()} total orders · showing first 20`;
   }
   get ordersMs()    { return this.orders.result?.ms ?? 0; }
 
@@ -454,7 +456,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
       }, 100);
     }, SLOW_WAKING_MS);
 
-    this.http.get(`${environment.apiBase}/api/orders?pageSize=10&sort=placedAt&dir=desc`).subscribe({
+    this.http.get(`${environment.apiBase}/api/orders?pageSize=20&sort=placedAt&dir=desc`).subscribe({
       next: () => this.markReady(),
       error: () => this.markReady(),
     });
@@ -482,7 +484,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   async runOrders() {
     this.orders = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const r = await fetchTimed(`${environment.apiBase}/api/orders?pageSize=10&sort=placedAt&dir=desc`);
+      const r = await fetchTimed(`${environment.apiBase}/api/orders?pageSize=20&sort=placedAt&dir=desc`);
       this.orders = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.orders = { loading: false, slow: false, result: null, err: String(e) };
@@ -493,7 +495,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
     if (!this.searchQ.trim()) return;
     this.search = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const r = await fetchTimed(`${environment.apiBase}/api/orders?q=` + encodeURIComponent(this.searchQ.trim()) + '&pageSize=10');
+      const r = await fetchTimed(`${environment.apiBase}/api/orders?q=` + encodeURIComponent(this.searchQ.trim()) + '&pageSize=20&sort=placedAt&dir=desc');
       this.search = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.search = { loading: false, slow: false, result: null, err: String(e) };
@@ -504,7 +506,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
     if (!this.aggFrom || !this.aggTo) return;
     this.agg = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const r = await fetchTimed(`${environment.apiBase}/api/aggregates?from=${this.aggFrom}&to=${this.aggTo}&topCategories=3`);
+      const r = await fetchTimed(`${environment.apiBase}/api/aggregates?from=${this.aggFrom}&to=${this.aggTo}&topCategories=5`);
       this.agg = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
       this.agg = { loading: false, slow: false, result: null, err: String(e) };
@@ -514,7 +516,7 @@ export class ApiExplorerComponent implements OnInit, OnDestroy {
   async runCustomers() {
     this.cust = { loading: true, slow: maybeAsleep(), result: null, err: null };
     try {
-      const url = `${environment.apiBase}/api/customers?limit=10` + (this.custQ.trim() ? '&q=' + encodeURIComponent(this.custQ.trim()) : '');
+      const url = `${environment.apiBase}/api/customers?limit=20` + (this.custQ.trim() ? '&q=' + encodeURIComponent(this.custQ.trim()) : '');
       const r = await fetchTimed(url);
       this.cust = { loading: false, slow: false, result: r, err: null };
     } catch (e) {
